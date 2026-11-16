@@ -1,0 +1,34 @@
+---
+# A stock Debian 13 box ships ~23 profiles in complain mode. cis_level2 must refuse to enforce them unasked.
+- name: Prepare (enforcing is refused without consent)
+  hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Try to enforce without confirm_enforce
+      block:
+        - name: Remediate unconfirmed
+          ansible.builtin.include_role:
+            name: "{{ playbook_dir }}/../.."  # noqa: role-name[path]
+          vars:
+            linux_hardening_mode: remediate
+            linux_hardening_confirm_remediation: true
+            linux_hardening_profile: cis_level2
+        - name: Fail if the role did not refuse
+          ansible.builtin.fail:
+            msg: Role enforced profiles without confirm_enforce.
+      rescue:
+        - name: Assert the refusal named the switch
+          ansible.builtin.assert:
+            that: "'confirm_enforce' in ansible_failed_result.msg"
+            quiet: true
+
+    - name: Read the live profile modes
+      ansible.builtin.command: aa-status --json
+      register: __c
+      changed_when: false
+
+    - name: Nothing changed yet (complain profiles remain)
+      ansible.builtin.assert:
+        that: (__c.stdout | from_json).profiles.values() | select('eq', 'complain') | list | length > 0
+        quiet: true

@@ -1,0 +1,31 @@
+---
+- name: Gather AppArmor state
+  ansible.builtin.include_tasks: facts.yml
+
+- name: Refuse to enforce complain-mode profiles without consent
+  ansible.builtin.assert:
+    that: linux_hardening_apparmor_confirm_enforce | bool
+    fail_msg: >-
+      {{ __lh_ap_complain | length }} profile(s) are in complain mode and cis_level2 would enforce them
+      ({{ __lh_ap_complain | join(', ') | truncate(200) }}). Enforcing can break the applications they confine.
+      Leave some out with linux_hardening_apparmor_complain_allowed, then set
+      linux_hardening_apparmor_confirm_enforce: true to proceed.
+    quiet: true
+  when: linux_hardening_profile == 'cis_level2' and __lh_ap_complain | length > 0
+
+- name: Ensure the AppArmor packages are installed
+  ansible.builtin.package:
+    name: [apparmor, apparmor-utils]
+    state: present
+    update_cache: true
+
+# Starting needs the kernel interface (apparmor.service asserts on it); enabling does not.
+- name: Enable apparmor.service, and start it when the kernel interface is there
+  ansible.builtin.systemd:
+    name: apparmor
+    enabled: true
+    state: "{{ 'started' if __lh_ap_kernel else omit }}"
+
+- name: Enforce the complain-mode profiles
+  ansible.builtin.include_tasks: enforce.yml
+  when: linux_hardening_profile == 'cis_level2'

@@ -1,0 +1,25 @@
+---
+
+dependencies: []
+
+galaxy_info:
+  role_name: apparmor_hardening
+  author: iamenr0s
+  description: Audit-first AppArmor packages, service and profile modes (iamenr0s.linux_hardening).
+  license: MIT
+  min_ansible_version: "2.16"
+  platforms:
+    - name: "Debian"
+      versions:
+        - "bookworm"
+        - "trixie"
+    - name: "Ubuntu"
+      versions:
+        - "jammy"
+        - "noble"
+  galaxy_tags:
+    - security
+    - apparmor
+    - mac
+    - hardening
+    - compliance

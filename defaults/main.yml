@@ -1,0 +1,16 @@
+---
+# --- Shared collection variables ---
+linux_hardening_mode: audit                    # audit (read-only) | remediate
+linux_hardening_confirm_remediation: false     # must be true for any change
+linux_hardening_profile: cis_level1            # cis_level2 also requires every profile to be enforcing
+linux_hardening_verify: true
+linux_hardening_fail_on_error: true
+
+# --- apparmor_hardening (Debian / Ubuntu; other families are skipped, see selinux_hardening) ---
+linux_hardening_apparmor_enabled: true
+
+# cis_level2 only: profiles that ship or were left in complain mode become enforcing. That can break the
+# applications they confine (browsers, desktop apps), so it needs explicit consent.
+linux_hardening_apparmor_confirm_enforce: false
+# Profiles to leave in complain mode (the parent name, e.g. plasmashell; its child profiles follow).
+linux_hardening_apparmor_complain_allowed: []

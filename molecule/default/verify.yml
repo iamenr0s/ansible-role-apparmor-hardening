@@ -1,0 +1,35 @@
+---
+# A container shares the host kernel, so only packages and the service state can be checked here.
+- name: Verify
+  hosts: all
+  become: false
+  gather_facts: true
+  tasks:
+    - name: Audit again, without failing on kernel-level findings
+      ansible.builtin.include_role:
+        name: "{{ playbook_dir }}/../.."  # noqa: role-name[path]
+      vars:
+        linux_hardening_mode: audit
+        linux_hardening_fail_on_error: false
+
+    - name: Other OS families are skipped
+      ansible.builtin.assert:
+        that: linux_hardening_apparmor_findings == []
+        quiet: true
+      when: ansible_facts['os_family'] != 'Debian'
+
+    - name: The packages are installed and no package finding remains
+      when: ansible_facts['os_family'] == 'Debian'
+      block:
+        - name: Check dpkg
+          ansible.builtin.command: dpkg -s apparmor apparmor-utils
+          changed_when: false
+          failed_when: false
+          register: __d
+
+        - name: Assert
+          ansible.builtin.assert:
+            that:
+              - __d.rc == 0
+              - linux_hardening_apparmor_findings | selectattr('key', 'search', '^package') | list | length == 0
+            quiet: true

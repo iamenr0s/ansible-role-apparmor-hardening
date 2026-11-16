@@ -1,0 +1,41 @@
+---
+- name: Verify on a real VM
+  hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Read the live profile modes
+      ansible.builtin.command: aa-status --json
+      register: __s
+      changed_when: false
+
+    - name: Only the allowed parent (and its children) is still in complain mode; transmission was enforced by file
+      ansible.builtin.assert:
+        that:
+          - __complain | map('split', '//') | map('first') | unique | difference(['plasmashell']) | length == 0
+          - __modes['transmission-cli'] == 'enforce'
+          - __modes['Xorg'] == 'enforce'
+        quiet: true
+      vars:
+        __modes: "{{ (__s.stdout | from_json).profiles }}"
+        __complain: "{{ __modes | dict2items | selectattr('value', 'eq', 'complain') | map(attribute='key') | list }}"
+
+    - name: Query the service
+      ansible.builtin.systemd:
+        name: apparmor
+      register: __u
+
+    - name: The service is enabled and active
+      ansible.builtin.assert:
+        that:
+          - __u.status.UnitFileState == 'enabled'
+          - __u.status.ActiveState == 'active'
+        quiet: true
+
+    - name: Audit is compliant
+      ansible.builtin.include_role:
+        name: "{{ playbook_dir }}/../.."  # noqa: role-name[path]
+      vars:
+        linux_hardening_mode: audit
+        linux_hardening_profile: cis_level2
+        linux_hardening_apparmor_complain_allowed: [plasmashell]
