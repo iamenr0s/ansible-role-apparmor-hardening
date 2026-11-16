@@ -1,4 +1,4 @@
-[![Molecule](https://github.com/iamenr0s/ansible-role-apparmor-hardening/actions/workflows/molecule.yml/badge.svg)](https://github.com/iamenr0s/ansible-role-apparmor-hardening/actions/workflows/molecule.yml) ![Ansible Role](https://img.shields.io/ansible/role/d/iamenr0s/ansible_role_apparmor_hardening) [![CodeFactor](https://www.codefactor.io/repository/github/iamenr0s/ansible-role-apparmor-hardening/badge)](https://www.codefactor.io/repository/github/iamenr0s/ansible-role-apparmor-hardening)
+[![Molecule](https://github.com/iamenr0s/ansible-role-apparmor-hardening/actions/workflows/molecule.yml/badge.svg)](https://github.com/iamenr0s/ansible-role-apparmor-hardening/actions/workflows/molecule.yml) ![Ansible Role](https://img.shields.io/ansible/role/d/iamenr0s/apparmor_hardening) [![CodeFactor](https://www.codefactor.io/repository/github/iamenr0s/ansible-role-apparmor-hardening/badge)](https://www.codefactor.io/repository/github/iamenr0s/ansible-role-apparmor-hardening)
 
 # Ansible Role: Apparmor Hardening
 
@@ -87,4 +87,4 @@ This project is licensed under the [MIT License](LICENSE).
 
 Author: iamenr0s
 
-Galaxy: `iamenr0s.ansible_role_apparmor_hardening`
+Galaxy: `iamenr0s.apparmor_hardening`
