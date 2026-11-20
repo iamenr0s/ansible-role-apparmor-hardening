@@ -8,23 +8,39 @@
       {%- set out = [] -%}
       {%- set pkgs = ansible_facts['packages'] -%}
       {%- for p in ['apparmor', 'apparmor-utils'] if p not in pkgs -%}
-      {%- set _ = out.append({'key': 'package ' ~ p, 'expected': 'installed', 'actual': 'missing', 'fixable': true}) -%}
+      {%- set _ = out.append({'key': 'package ' ~ p, 'expected': 'installed', 'actual': 'missing',
+                              'fixable': true}) -%}
       {%- endfor -%}
       {%- if not __lh_ap_kernel -%}
-      {%- set why = (['apparmor=0'] | intersect(__lh_ap_cmdline) | list) + (__lh_ap_cmdline | select('match', '^security=') | reject('eq', 'security=apparmor') | list) -%}
+      {%- set why = (['apparmor=0'] | intersect(__lh_ap_cmdline) | list)
+                    + (__lh_ap_cmdline | select('match', '^security=') | reject('eq', 'security=apparmor') | list) -%}
+      {%- if why -%}
+      {%- set reason = why | join(', ') ~ ' on the kernel command line; reported only: bootloader, needs a reboot' -%}
+      {%- elif not __lh_ap_securityfs.stat.exists -%}
+      {%- set reason = 'reported only: securityfs is not available, e.g. in a container' -%}
+      {%- else -%}
+      {%- set reason = 'reported only: kernel or bootloader' -%}
+      {%- endif -%}
       {%- set _ = out.append({'key': 'AppArmor in the kernel', 'expected': 'enabled', 'fixable': false,
-                              'actual': 'disabled' ~ (' (' ~ why | join(', ') ~ ' on the kernel command line; reported only: bootloader, needs a reboot)' if why else (' (reported only: securityfs is not available, e.g. in a container)' if not __lh_ap_securityfs.stat.exists else ' (reported only: kernel or bootloader)'))}) -%}
+                              'actual': 'disabled (' ~ reason ~ ')'}) -%}
       {%- else -%}
       {%- set st = __lh_ap_unit.status | default({}) -%}
-      {%- if st.get('UnitFileState', '') != 'enabled' or (st.get('ActiveState', '') != 'active' and st.get('ConditionResult', '') != 'no') -%}
-      {%- set _ = out.append({'key': 'apparmor.service', 'expected': 'enabled and active', 'actual': (st.get('UnitFileState', 'missing')) ~ ' / ' ~ (st.get('ActiveState', 'missing')), 'fixable': true}) -%}
+      {%- if st.get('UnitFileState', '') != 'enabled'
+             or (st.get('ActiveState', '') != 'active' and st.get('ConditionResult', '') != 'no') -%}
+      {%- set _ = out.append({'key': 'apparmor.service', 'expected': 'enabled and active',
+                              'actual': st.get('UnitFileState', 'missing') ~ ' / ' ~ st.get('ActiveState', 'missing'),
+                              'fixable': true}) -%}
       {%- endif -%}
       {%- if __lh_ap_profiles | length == 0 and __lh_ap_aa_status.stat.exists -%}
-      {%- set _ = out.append({'key': 'loaded profiles', 'expected': 'at least one', 'actual': 'none loaded (reported only)', 'fixable': false}) -%}
+      {%- set _ = out.append({'key': 'loaded profiles', 'expected': 'at least one',
+                              'actual': 'none loaded (reported only)', 'fixable': false}) -%}
       {%- endif -%}
       {%- if linux_hardening_profile == 'cis_level2' -%}
       {%- for n in __lh_ap_complain -%}
-      {%- set _ = out.append({'key': 'profile ' ~ n, 'expected': 'enforce', 'actual': 'complain' ~ (' (could not be enforced)' if n in (__lh_ap_failed | default([])) else ''), 'fixable': n not in (__lh_ap_failed | default([]))}) -%}
+      {%- set failed = n in (__lh_ap_failed | default([])) -%}
+      {%- set _ = out.append({'key': 'profile ' ~ n, 'expected': 'enforce',
+                              'actual': 'complain' ~ (' (could not be enforced)' if failed else ''),
+                              'fixable': not failed}) -%}
       {%- endfor -%}
       {%- endif -%}
       {%- endif -%}

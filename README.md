@@ -23,8 +23,23 @@ Features
 | At least one profile loaded | reported only |
 | `cis_level2` only: no profile in complain mode | `aa-enforce` (needs consent, see Safety) |
 
+## Requirements
+Run as root (`become: true`). No collection or role dependencies. The role is idempotent: a second remediate run reports no changes.
+
+## Role Variables
+| Variable | Default | Description |
+|---|---|---|
+| `linux_hardening_mode` | `audit` | `audit` (read-only) or `remediate` |
+| `linux_hardening_confirm_remediation` | `false` | Must be `true` before remediate changes anything |
+| `linux_hardening_profile` | `cis_level1` | `baseline`, `cis_level1` or `cis_level2` (adds the enforce tier) |
+| `linux_hardening_verify` | `true` | Re-audit after remediation (skipped in check mode) |
+| `linux_hardening_fail_on_error` | `true` | Fail the play when audit finds deviations |
+| `linux_hardening_apparmor_enabled` | `true` | Run the role |
+| `linux_hardening_apparmor_confirm_enforce` | `false` | Allow switching complain-mode profiles to enforce (`cis_level2`) |
+| `linux_hardening_apparmor_complain_allowed` | `[]` | Parent profile names to leave in complain mode |
+
 ## Variable names
-Variables use the collection-wide `linux_hardening_*` prefix (shared with sibling roles) rather than `apparmor_hardening_*`. Full list: `defaults/main.yml` and `meta/argument_specs.yml`. `linux_hardening_profile`: `baseline` and `cis_level1` behave the same here; `cis_level2` adds the enforce tier.
+Variables use the collection-wide `linux_hardening_*` prefix (shared with sibling roles) rather than `apparmor_hardening_*`. The full spec is in `meta/argument_specs.yml`. `linux_hardening_profile`: `baseline` and `cis_level1` behave the same here; `cis_level2` adds the enforce tier.
 
 ## Modes
 `audit` (default) is read-only and sets `linux_hardening_apparmor_findings` (`key, expected, actual, fixable`). `remediate` needs `linux_hardening_confirm_remediation: true`. After remediation only fixable findings fail the run.

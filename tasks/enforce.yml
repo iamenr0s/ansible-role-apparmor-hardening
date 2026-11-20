@@ -43,5 +43,7 @@
 # profile that left complain mode, so profiles that cannot be enforced do not make every run "changed".
 - name: Report how many profiles were enforced
   ansible.builtin.debug:
-    msg: "enforced {{ __lh_ap_complain_before | difference(__lh_ap_complain) | length }} profile(s); still complain: {{ __lh_ap_complain | join(', ') | default('none', true) }}"
+    msg: >-
+      enforced {{ __lh_ap_complain_before | difference(__lh_ap_complain) | length }} profile(s);
+      still complain: {{ __lh_ap_complain | join(', ') | default('none', true) }}
   changed_when: __lh_ap_complain_before | difference(__lh_ap_complain) | length > 0

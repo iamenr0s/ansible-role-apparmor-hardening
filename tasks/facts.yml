@@ -47,7 +47,9 @@
 
 - name: Work out kernel state and the complain-mode parents
   ansible.builtin.set_fact:
-    __lh_ap_kernel: "{{ (__lh_ap_enabled_raw.content | default('') | b64decode | trim) == 'Y' and __lh_ap_securityfs.stat.exists }}"
+    __lh_ap_kernel: >-
+      {{ (__lh_ap_enabled_raw.content | default('') | b64decode | trim) == 'Y'
+         and __lh_ap_securityfs.stat.exists }}
     __lh_ap_cmdline: "{{ __lh_ap_cmdline_raw.content | default('') | b64decode | trim | split(' ') }}"
     __lh_ap_profiles: >-
       {{ (__lh_ap_status.stdout | from_json).profiles
