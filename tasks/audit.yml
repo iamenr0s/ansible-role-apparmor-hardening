@@ -2,37 +2,70 @@
 - name: Gather AppArmor state
   ansible.builtin.include_tasks: facts.yml
 
-- name: Compare with desired state
+- name: Start with no findings
   ansible.builtin.set_fact:
-    __lh_ap_findings: >-
-      {%- set out = [] -%}
-      {%- set pkgs = ansible_facts['packages'] -%}
-      {%- for p in ['apparmor', 'apparmor-utils'] if p not in pkgs -%}
-      {%- set _ = out.append({'key': 'package ' ~ p, 'expected': 'installed', 'actual': 'missing', 'fixable': true}) -%}
-      {%- endfor -%}
-      {%- if not __lh_ap_kernel -%}
-      {%- set why = (['apparmor=0'] | intersect(__lh_ap_cmdline) | list) + (__lh_ap_cmdline | select('match', '^security=') | reject('eq', 'security=apparmor') | list) -%}
-      {%- set _ = out.append({'key': 'AppArmor in the kernel', 'expected': 'enabled', 'fixable': false,
-                              'actual': 'disabled' ~ (' (' ~ why | join(', ') ~ ' on the kernel command line; reported only: bootloader, needs a reboot)' if why else (' (reported only: securityfs is not available, e.g. in a container)' if not __lh_ap_securityfs.stat.exists else ' (reported only: kernel or bootloader)'))}) -%}
-      {%- else -%}
-      {%- set st = __lh_ap_unit.status | default({}) -%}
-      {%- if st.get('UnitFileState', '') != 'enabled' or (st.get('ActiveState', '') != 'active' and st.get('ConditionResult', '') != 'no') -%}
-      {%- set _ = out.append({'key': 'apparmor.service', 'expected': 'enabled and active', 'actual': (st.get('UnitFileState', 'missing')) ~ ' / ' ~ (st.get('ActiveState', 'missing')), 'fixable': true}) -%}
-      {%- endif -%}
-      {%- if __lh_ap_profiles | length == 0 and __lh_ap_aa_status.stat.exists -%}
-      {%- set _ = out.append({'key': 'loaded profiles', 'expected': 'at least one', 'actual': 'none loaded (reported only)', 'fixable': false}) -%}
-      {%- endif -%}
-      {%- if linux_hardening_profile == 'cis_level2' -%}
-      {%- for n in __lh_ap_complain -%}
-      {%- set _ = out.append({'key': 'profile ' ~ n, 'expected': 'enforce', 'actual': 'complain' ~ (' (could not be enforced)' if n in (__lh_ap_failed | default([])) else ''), 'fixable': n not in (__lh_ap_failed | default([]))}) -%}
-      {%- endfor -%}
-      {%- endif -%}
-      {%- endif -%}
-      {{ out | to_json }}
+    linux_hardening_apparmor_findings: []
 
-- name: Record findings
+- name: Report missing packages
   ansible.builtin.set_fact:
-    linux_hardening_apparmor_findings: "{{ __lh_ap_findings | from_json }}"
+    linux_hardening_apparmor_findings: >-
+      {{ linux_hardening_apparmor_findings + [{'key': 'package ' ~ item, 'expected': 'installed',
+         'actual': 'missing', 'fixable': true}] }}
+  loop: [apparmor, apparmor-utils]
+  when: item not in ansible_facts['packages']
+
+- name: Report AppArmor disabled in the kernel
+  ansible.builtin.set_fact:
+    linux_hardening_apparmor_findings: >-
+      {{ linux_hardening_apparmor_findings + [{'key': 'AppArmor in the kernel', 'expected': 'enabled',
+         'actual': 'disabled (' ~ __lh_ap_reason ~ ')', 'fixable': false}] }}
+  vars:
+    __lh_ap_why: >-
+      {{ (['apparmor=0'] | intersect(__lh_ap_cmdline))
+         + (__lh_ap_cmdline | select('match', '^security=') | reject('eq', 'security=apparmor') | list) }}
+    __lh_ap_reason: >-
+      {{ __lh_ap_why | join(', ') ~ ' on the kernel command line; reported only: bootloader, needs a reboot'
+         if __lh_ap_why
+         else 'reported only: securityfs is not available, e.g. in a container'
+         if not __lh_ap_securityfs.stat.exists
+         else 'reported only: kernel or bootloader' }}
+  when: not __lh_ap_kernel | bool
+
+- name: Check the running AppArmor
+  when: __lh_ap_kernel | bool
+  block:
+    # ConditionResult "no" means systemd skipped the start on purpose (no kernel interface), not a failure.
+    - name: Report apparmor.service not enabled and active
+      ansible.builtin.set_fact:
+        linux_hardening_apparmor_findings: >-
+          {{ linux_hardening_apparmor_findings + [{'key': 'apparmor.service', 'expected': 'enabled and active',
+             'actual': __lh_ap_st.get('UnitFileState', 'missing') ~ ' / ' ~ __lh_ap_st.get('ActiveState', 'missing'),
+             'fixable': true}] }}
+      vars:
+        __lh_ap_st: "{{ __lh_ap_unit.status | default({}) }}"
+      when: >-
+        __lh_ap_st.get('UnitFileState', '') != 'enabled'
+        or (__lh_ap_st.get('ActiveState', '') != 'active' and __lh_ap_st.get('ConditionResult', '') != 'no')
+
+    - name: Report no loaded profiles
+      ansible.builtin.set_fact:
+        linux_hardening_apparmor_findings: >-
+          {{ linux_hardening_apparmor_findings + [{'key': 'loaded profiles', 'expected': 'at least one',
+             'actual': 'none loaded (reported only)', 'fixable': false}] }}
+      when:
+        - __lh_ap_aa_status.stat.exists
+        - __lh_ap_profiles | length == 0
+
+    - name: Report complain-mode profiles (cis_level2)
+      ansible.builtin.set_fact:
+        linux_hardening_apparmor_findings: >-
+          {{ linux_hardening_apparmor_findings + [{'key': 'profile ' ~ item, 'expected': 'enforce',
+             'actual': 'complain' ~ (' (could not be enforced)' if __lh_ap_unfixable else ''),
+             'fixable': not __lh_ap_unfixable}] }}
+      vars:
+        __lh_ap_unfixable: "{{ item in (__lh_ap_failed | default([])) }}"
+      loop: "{{ __lh_ap_complain }}"
+      when: linux_hardening_profile == 'cis_level2'
 
 - name: Report apparmor_hardening result
   ansible.builtin.debug:
@@ -44,8 +77,7 @@
     msg: "apparmor_hardening found {{ __lh_ap_blocking | length }} deviation(s)."
   vars:
     __lh_ap_blocking: >-
-      {{ linux_hardening_apparmor_findings
-         if (linux_hardening_fail_on_error | bool) and not (__lh_ap_audit_fatal | default(false))
-         else linux_hardening_apparmor_findings | selectattr('fixable') | list
-         if (__lh_ap_audit_fatal | default(false)) else [] }}
+      {{ linux_hardening_apparmor_findings | selectattr('fixable') | list if __lh_ap_audit_fatal | default(false)
+         else linux_hardening_apparmor_findings if linux_hardening_fail_on_error | bool
+         else [] }}
   when: __lh_ap_blocking | length > 0

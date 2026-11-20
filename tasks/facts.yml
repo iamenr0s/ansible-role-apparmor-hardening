@@ -1,6 +1,6 @@
 ---
-# Read-only. Sets __lh_ap_kernel (bool), __lh_ap_profiles (name -> mode), __lh_ap_unit (systemd status),
-# __lh_ap_cmdline (list), __lh_ap_complain (parent profiles in complain mode, not allowed).
+# Read-only. Sets __lh_ap_kernel (bool), __lh_ap_unit (systemd status), __lh_ap_cmdline (list),
+# and through profiles.yml __lh_ap_profiles and __lh_ap_complain.
 - name: Gather package facts
   ansible.builtin.package_facts:
 
@@ -25,37 +25,19 @@
   failed_when: false
   check_mode: false
 
-- name: Look for aa-status
-  ansible.builtin.stat:
-    path: /usr/sbin/aa-status
-  register: __lh_ap_aa_status
-
-- name: Read the loaded profiles
-  ansible.builtin.command: aa-status --json
-  register: __lh_ap_status
-  changed_when: false
-  failed_when: false
-  check_mode: false
-  when: __lh_ap_aa_status.stat.exists
-
 - name: Query the apparmor service
-  ansible.builtin.systemd:
+  ansible.builtin.systemd_service:
     name: apparmor
   register: __lh_ap_unit
   failed_when: false
   check_mode: false
 
-- name: Work out kernel state and the complain-mode parents
+- name: Work out the kernel state
   ansible.builtin.set_fact:
-    __lh_ap_kernel: "{{ (__lh_ap_enabled_raw.content | default('') | b64decode | trim) == 'Y' and __lh_ap_securityfs.stat.exists }}"
+    __lh_ap_kernel: >-
+      {{ (__lh_ap_enabled_raw.content | default('') | b64decode | trim) == 'Y'
+         and __lh_ap_securityfs.stat.exists }}
     __lh_ap_cmdline: "{{ __lh_ap_cmdline_raw.content | default('') | b64decode | trim | split(' ') }}"
-    __lh_ap_profiles: >-
-      {{ (__lh_ap_status.stdout | from_json).profiles
-         if (__lh_ap_status.rc | default(1)) == 0 and (__lh_ap_status.stdout | default('') | length > 0) else {} }}
 
-- name: List the complain-mode parent profiles that are not allowed
-  ansible.builtin.set_fact:
-    __lh_ap_complain: >-
-      {{ __lh_ap_profiles | dict2items | selectattr('value', 'eq', 'complain') | map(attribute='key')
-         | map('split', '//') | map('first') | unique
-         | difference(linux_hardening_apparmor_complain_allowed) | sort }}
+- name: Read the profile modes
+  ansible.builtin.include_tasks: profiles.yml
