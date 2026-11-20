@@ -4,7 +4,7 @@
 - name: Re-read the live profile modes
   ansible.builtin.include_tasks: profiles.yml
 
-- name: Remember how many profiles were in complain mode
+- name: Remember which profiles were in complain mode
   ansible.builtin.set_fact:
     __lh_ap_complain_before: "{{ __lh_ap_complain }}"
 
