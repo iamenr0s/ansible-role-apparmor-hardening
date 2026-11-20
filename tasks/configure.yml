@@ -18,6 +18,7 @@
     name: [apparmor, apparmor-utils]
     state: present
     update_cache: true
+    cache_valid_time: 3600
   register: __lh_ap_pkg_result
 
 # Starting needs the kernel interface (apparmor.service asserts on it); enabling does not.
