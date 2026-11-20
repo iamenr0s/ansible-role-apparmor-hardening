@@ -1,10 +1,18 @@
 [![Molecule](https://github.com/iamenr0s/ansible-role-apparmor-hardening/actions/workflows/molecule.yml/badge.svg)](https://github.com/iamenr0s/ansible-role-apparmor-hardening/actions/workflows/molecule.yml) ![Ansible Role](https://img.shields.io/ansible/role/d/iamenr0s/apparmor_hardening) [![CodeFactor](https://www.codefactor.io/repository/github/iamenr0s/ansible-role-apparmor-hardening/badge)](https://www.codefactor.io/repository/github/iamenr0s/ansible-role-apparmor-hardening)
 
-# Ansible Role: Apparmor Hardening
+# Ansible Role: AppArmor Hardening
 
-> Standalone copy of `apparmor_hardening` from the [iamenr0s.linux_hardening](https://github.com/iamenr0s/linux-hardening-collection) collection. Variables keep the collection-wide `linux_hardening_*` prefix.
+This role audits and enforces AppArmor on Debian/Ubuntu servers: packages, service and profile modes. It does not touch the bootloader and never reboots. Other OS families (RHEL/AlmaLinux/RockyLinux and Fedora: see `selinux_hardening`) are skipped with a message and `linux_hardening_apparmor_findings: []`.
 
-Audit-first AppArmor for the Debian family (Debian, Ubuntu). Other families are **skipped** with a message and `linux_hardening_apparmor_findings: []` (EL/Fedora: see `selinux_hardening`). It does not touch the bootloader and never reboots.
+Features
+--------
+- Audit mode by default: read-only, and reports every deviation. Changes need `linux_hardening_confirm_remediation: true`.
+- Installs `apparmor` and `apparmor-utils`, and enables and starts `apparmor.service`.
+- Reports a kernel with AppArmor disabled (`apparmor=0` / `security=`) but never edits the bootloader.
+- `cis_level2` switches complain-mode profiles to enforce, only with `linux_hardening_apparmor_confirm_enforce: true`.
+- Leaves chosen profiles in complain mode with `linux_hardening_apparmor_complain_allowed`.
+- Does not trust `aa-enforce`'s exit code: it re-reads the live profile modes after every change.
+- Standalone copy of `apparmor_hardening` from the [iamenr0s.linux_hardening](https://github.com/iamenr0s/linux-hardening-collection) collection.
 
 ## What it checks
 | Check | Remediation |
@@ -13,21 +21,25 @@ Audit-first AppArmor for the Debian family (Debian, Ubuntu). Other families are 
 | AppArmor active in the kernel (`/sys/module/apparmor/parameters/enabled` and the securityfs interface) | **reported only**: `apparmor=0` / `security=` on the command line is a bootloader matter and needs a reboot |
 | `apparmor.service` enabled and active | enabled; started when the kernel interface exists |
 | At least one profile loaded | reported only |
-| `cis_level2` only: no profile in complain mode | `aa-enforce` (needs consent, see below) |
+| `cis_level2` only: no profile in complain mode | `aa-enforce` (needs consent, see Safety) |
 
-## The enforce tier
-A stock Debian 13 loads 110 profiles but ships many in **complain** mode on purpose (desktop apps, browsers, Xorg). Making them all enforcing is the `cis_level2` profile, and it can break the applications they confine, so remediation stops unless `linux_hardening_apparmor_confirm_enforce: true`. Leave some alone with `linux_hardening_apparmor_complain_allowed: [plasmashell]` (the parent name; its `//child` profiles follow it).
-
-`aa-enforce` exits 0 even when it fails, so the role never trusts the exit code: it enforces by profile name, re-reads the live modes, then falls back to the profile *file* for names that are not a path (e.g. profiles whose executable is not installed). Anything still in complain mode is reported as `fixable: false`. Runs are idempotent: a change is counted only when a profile actually left complain mode.
+## Variable names
+Variables use the collection-wide `linux_hardening_*` prefix (shared with sibling roles) rather than `apparmor_hardening_*`. Full list: `defaults/main.yml` and `meta/argument_specs.yml`. `linux_hardening_profile`: `baseline` and `cis_level1` behave the same here; `cis_level2` adds the enforce tier.
 
 ## Modes
-`audit` (default) is read-only and sets `linux_hardening_apparmor_findings` (`key, expected, actual, fixable`). `remediate` needs `linux_hardening_confirm_remediation: true`; after it only fixable findings fail the run.
+`audit` (default) is read-only and sets `linux_hardening_apparmor_findings` (`key, expected, actual, fixable`). `remediate` needs `linux_hardening_confirm_remediation: true`. After remediation only fixable findings fail the run.
+
+## Safety
+- A stock Debian 13 loads 110 profiles but ships many in **complain** mode on purpose (desktop apps, browsers, Xorg). Making them all enforcing (`cis_level2`) can break the applications they confine, so remediation stops unless `linux_hardening_apparmor_confirm_enforce: true`. Leave some alone with `linux_hardening_apparmor_complain_allowed: [plasmashell]` (the parent name; its `//child` profiles follow it).
+- `aa-enforce` exits 0 even when it fails, so the role enforces by profile name, re-reads the live modes, then falls back to the profile *file* for names that are not a path (e.g. profiles whose executable is not installed). Anything still in complain mode is reported as `fixable: false`. Runs are idempotent: a change is counted only when a profile actually left complain mode.
+- The kernel command line is never changed, so the role cannot leave a host unbootable.
 
 ## Example
 ```yaml
 - hosts: debian_family
+  become: true
   roles:
-    - role: iamenr0s.linux_hardening.apparmor_hardening
+    - role: iamenr0s.apparmor_hardening
       vars:
         linux_hardening_mode: remediate
         linux_hardening_confirm_remediation: true
