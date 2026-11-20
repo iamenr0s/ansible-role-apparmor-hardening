@@ -9,17 +9,19 @@
         fail_msg: "linux_hardening_mode must be 'audit' or 'remediate', got '{{ linux_hardening_mode }}'"
         quiet: true
 
+    # shortcut: a block, not meta end_role, because end_role needs ansible-core 2.18 (min here is 2.16).
     - name: Skip other OS families
-      ansible.builtin.set_fact:
-        linux_hardening_apparmor_findings: []
       when: ansible_facts['os_family'] != 'Debian'
+      block:
+        - name: Record no findings
+          ansible.builtin.set_fact:
+            linux_hardening_apparmor_findings: []
 
-    - name: Say why the role was skipped
-      ansible.builtin.debug:
-        msg: >-
-          apparmor_hardening applies to the Debian family;
-          {{ ansible_facts['os_family'] }} is skipped (see selinux_hardening).
-      when: ansible_facts['os_family'] != 'Debian'
+        - name: Say why the role was skipped
+          ansible.builtin.debug:
+            msg: >-
+              apparmor_hardening applies to the Debian family;
+              {{ ansible_facts['os_family'] }} is skipped (see selinux_hardening).
 
     - name: Run on the Debian family
       when: ansible_facts['os_family'] == 'Debian'

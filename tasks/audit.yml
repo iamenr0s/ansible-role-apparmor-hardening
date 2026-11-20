@@ -14,7 +14,6 @@
   loop: [apparmor, apparmor-utils]
   when: item not in ansible_facts['packages']
 
-# Everything below the kernel check needs AppArmor running in the kernel.
 - name: Report AppArmor disabled in the kernel
   ansible.builtin.set_fact:
     linux_hardening_apparmor_findings: >-
@@ -32,42 +31,41 @@
          else 'reported only: kernel or bootloader' }}
   when: not __lh_ap_kernel | bool
 
-# ConditionResult "no" means systemd skipped the start on purpose (no kernel interface), not a failure.
-- name: Report apparmor.service not enabled and active
-  ansible.builtin.set_fact:
-    linux_hardening_apparmor_findings: >-
-      {{ linux_hardening_apparmor_findings + [{'key': 'apparmor.service', 'expected': 'enabled and active',
-         'actual': __lh_ap_st.get('UnitFileState', 'missing') ~ ' / ' ~ __lh_ap_st.get('ActiveState', 'missing'),
-         'fixable': true}] }}
-  vars:
-    __lh_ap_st: "{{ __lh_ap_unit.status | default({}) }}"
-  when:
-    - __lh_ap_kernel | bool
-    - __lh_ap_st.get('UnitFileState', '') != 'enabled'
-      or (__lh_ap_st.get('ActiveState', '') != 'active' and __lh_ap_st.get('ConditionResult', '') != 'no')
+- name: Check the running AppArmor
+  when: __lh_ap_kernel | bool
+  block:
+    # ConditionResult "no" means systemd skipped the start on purpose (no kernel interface), not a failure.
+    - name: Report apparmor.service not enabled and active
+      ansible.builtin.set_fact:
+        linux_hardening_apparmor_findings: >-
+          {{ linux_hardening_apparmor_findings + [{'key': 'apparmor.service', 'expected': 'enabled and active',
+             'actual': __lh_ap_st.get('UnitFileState', 'missing') ~ ' / ' ~ __lh_ap_st.get('ActiveState', 'missing'),
+             'fixable': true}] }}
+      vars:
+        __lh_ap_st: "{{ __lh_ap_unit.status | default({}) }}"
+      when: >-
+        __lh_ap_st.get('UnitFileState', '') != 'enabled'
+        or (__lh_ap_st.get('ActiveState', '') != 'active' and __lh_ap_st.get('ConditionResult', '') != 'no')
 
-- name: Report no loaded profiles
-  ansible.builtin.set_fact:
-    linux_hardening_apparmor_findings: >-
-      {{ linux_hardening_apparmor_findings + [{'key': 'loaded profiles', 'expected': 'at least one',
-         'actual': 'none loaded (reported only)', 'fixable': false}] }}
-  when:
-    - __lh_ap_kernel | bool
-    - __lh_ap_aa_status.stat.exists
-    - __lh_ap_profiles | length == 0
+    - name: Report no loaded profiles
+      ansible.builtin.set_fact:
+        linux_hardening_apparmor_findings: >-
+          {{ linux_hardening_apparmor_findings + [{'key': 'loaded profiles', 'expected': 'at least one',
+             'actual': 'none loaded (reported only)', 'fixable': false}] }}
+      when:
+        - __lh_ap_aa_status.stat.exists
+        - __lh_ap_profiles | length == 0
 
-- name: Report complain-mode profiles (cis_level2)
-  ansible.builtin.set_fact:
-    linux_hardening_apparmor_findings: >-
-      {{ linux_hardening_apparmor_findings + [{'key': 'profile ' ~ item, 'expected': 'enforce',
-         'actual': 'complain' ~ (' (could not be enforced)' if __lh_ap_unfixable else ''),
-         'fixable': not __lh_ap_unfixable}] }}
-  vars:
-    __lh_ap_unfixable: "{{ item in (__lh_ap_failed | default([])) }}"
-  loop: "{{ __lh_ap_complain }}"
-  when:
-    - __lh_ap_kernel | bool
-    - linux_hardening_profile == 'cis_level2'
+    - name: Report complain-mode profiles (cis_level2)
+      ansible.builtin.set_fact:
+        linux_hardening_apparmor_findings: >-
+          {{ linux_hardening_apparmor_findings + [{'key': 'profile ' ~ item, 'expected': 'enforce',
+             'actual': 'complain' ~ (' (could not be enforced)' if __lh_ap_unfixable else ''),
+             'fixable': not __lh_ap_unfixable}] }}
+      vars:
+        __lh_ap_unfixable: "{{ item in (__lh_ap_failed | default([])) }}"
+      loop: "{{ __lh_ap_complain }}"
+      when: linux_hardening_profile == 'cis_level2'
 
 - name: Report apparmor_hardening result
   ansible.builtin.debug:

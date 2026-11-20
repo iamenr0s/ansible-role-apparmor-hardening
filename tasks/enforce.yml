@@ -1,6 +1,6 @@
 ---
 # aa-enforce exits 0 even when it cannot find a profile, so never trust its return code: re-read the live
-# modes. Pass 1 uses the profile name; pass 2 falls back to the profile file for names that are no path.
+# modes. Pass 1 uses the profile name; pass 2 falls back to the profile file for names that are not a path.
 - name: Re-read the live profile modes
   ansible.builtin.include_tasks: profiles.yml
 

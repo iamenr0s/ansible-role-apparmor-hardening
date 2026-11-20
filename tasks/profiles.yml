@@ -14,6 +14,7 @@
   check_mode: false
   when: __lh_ap_aa_status.stat.exists
 
+# aa-status missing, failing or printing nothing means no profiles are loaded.
 - name: Map the loaded profiles to their modes
   ansible.builtin.set_fact:
     __lh_ap_profiles: >-
