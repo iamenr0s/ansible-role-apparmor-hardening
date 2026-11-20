@@ -2,7 +2,7 @@
 # aa-enforce exits 0 even when it cannot find a profile, so never trust its return code: re-read the live
 # modes. Pass 1 uses the profile name; pass 2 falls back to the profile file for names that are no path.
 - name: Re-read the live profile modes
-  ansible.builtin.include_tasks: facts.yml
+  ansible.builtin.include_tasks: profiles.yml
 
 - name: Remember how many profiles were in complain mode
   ansible.builtin.set_fact:
@@ -15,7 +15,7 @@
   failed_when: false
 
 - name: Re-read the live profile modes (after the name pass)
-  ansible.builtin.include_tasks: facts.yml
+  ansible.builtin.include_tasks: profiles.yml
 
 - name: Find the profile files of the ones still in complain mode
   ansible.builtin.find:
@@ -33,7 +33,7 @@
   failed_when: false
 
 - name: Re-read the live profile modes (after the file pass)
-  ansible.builtin.include_tasks: facts.yml
+  ansible.builtin.include_tasks: profiles.yml
 
 - name: Remember what could not be enforced
   ansible.builtin.set_fact:
