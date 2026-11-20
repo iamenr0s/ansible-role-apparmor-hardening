@@ -25,11 +25,11 @@
           ansible.builtin.command: dpkg -s apparmor apparmor-utils
           changed_when: false
           failed_when: false
-          register: __d
+          register: __dpkg
 
         - name: Assert
           ansible.builtin.assert:
             that:
-              - __d.rc == 0
+              - __dpkg.rc == 0
               - linux_hardening_apparmor_findings | selectattr('key', 'search', '^package') | list | length == 0
             quiet: true

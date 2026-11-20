@@ -25,10 +25,10 @@
 
     - name: Read the live profile modes
       ansible.builtin.command: aa-status --json
-      register: __c
+      register: __aa_status
       changed_when: false
 
     - name: Nothing changed yet (complain profiles remain)
       ansible.builtin.assert:
-        that: (__c.stdout | from_json).profiles.values() | select('eq', 'complain') | list | length > 0
+        that: (__aa_status.stdout | from_json).profiles.values() | select('eq', 'complain') | list | length > 0
         quiet: true

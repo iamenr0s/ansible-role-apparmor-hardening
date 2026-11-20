@@ -6,7 +6,7 @@
   tasks:
     - name: Read the live profile modes
       ansible.builtin.command: aa-status --json
-      register: __s
+      register: __aa_status
       changed_when: false
 
     - name: Only the allowed parent (and its children) is still in complain mode; transmission was enforced by file
@@ -17,19 +17,19 @@
           - __modes['Xorg'] == 'enforce'
         quiet: true
       vars:
-        __modes: "{{ (__s.stdout | from_json).profiles }}"
+        __modes: "{{ (__aa_status.stdout | from_json).profiles }}"
         __complain: "{{ __modes | dict2items | selectattr('value', 'eq', 'complain') | map(attribute='key') | list }}"
 
     - name: Query the service
       ansible.builtin.systemd_service:
         name: apparmor
-      register: __u
+      register: __unit
 
     - name: The service is enabled and active
       ansible.builtin.assert:
         that:
-          - __u.status.UnitFileState == 'enabled'
-          - __u.status.ActiveState == 'active'
+          - __unit.status.UnitFileState == 'enabled'
+          - __unit.status.ActiveState == 'active'
         quiet: true
 
     - name: Audit is compliant
