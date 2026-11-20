@@ -1,8 +1,8 @@
 ---
-- name: Gather AppArmor state
+- name: configure | Gather AppArmor state
   ansible.builtin.include_tasks: facts.yml
 
-- name: Refuse to enforce complain-mode profiles without consent
+- name: configure | Refuse to enforce complain-mode profiles without consent
   ansible.builtin.assert:
     that: linux_hardening_apparmor_confirm_enforce | bool
     fail_msg: >-
@@ -13,7 +13,7 @@
     quiet: true
   when: linux_hardening_profile == 'cis_level2' and __lh_ap_complain | length > 0
 
-- name: Ensure the AppArmor packages are installed
+- name: configure | Ensure the AppArmor packages are installed
   ansible.builtin.apt:
     name: [apparmor, apparmor-utils]
     state: present
@@ -21,7 +21,7 @@
   register: __lh_ap_pkg_result
 
 # Starting needs the kernel interface (apparmor.service asserts on it); enabling does not.
-- name: Enable apparmor.service, and start it when the kernel interface is there
+- name: configure | Enable apparmor.service, and start it when the kernel interface is there
   ansible.builtin.systemd_service:
     name: apparmor
     enabled: true
@@ -29,6 +29,6 @@
   # In check mode a package that would be installed has no unit yet.
   when: not (ansible_check_mode and __lh_ap_pkg_result is changed)
 
-- name: Enforce the complain-mode profiles
+- name: configure | Enforce the complain-mode profiles
   ansible.builtin.include_tasks: enforce.yml
   when: linux_hardening_profile == 'cis_level2'
