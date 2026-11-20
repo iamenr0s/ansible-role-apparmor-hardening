@@ -1,10 +1,10 @@
 ---
 # Read-only. Sets __lh_ap_kernel (bool), __lh_ap_unit (systemd status), __lh_ap_cmdline (list),
 # and through profiles.yml __lh_ap_profiles and __lh_ap_complain.
-- name: Gather package facts
+- name: facts | Gather package facts
   ansible.builtin.package_facts:
 
-- name: Read the kernel's AppArmor switch
+- name: facts | Read the kernel's AppArmor switch
   ansible.builtin.slurp:
     src: /sys/module/apparmor/parameters/enabled
   register: __lh_ap_enabled_raw
@@ -13,31 +13,31 @@
 
 # The kernel switch alone is not enough: inside a container the securityfs interface is missing and
 # apparmor.service asserts on it.
-- name: Look for the AppArmor securityfs interface
+- name: facts | Look for the AppArmor securityfs interface
   ansible.builtin.stat:
     path: /sys/kernel/security/apparmor
   register: __lh_ap_securityfs
 
-- name: Read the kernel command line
+- name: facts | Read the kernel command line
   ansible.builtin.slurp:
     src: /proc/cmdline
   register: __lh_ap_cmdline_raw
   failed_when: false
   check_mode: false
 
-- name: Query the apparmor service
+- name: facts | Query the apparmor service
   ansible.builtin.systemd_service:
     name: apparmor
   register: __lh_ap_unit
   failed_when: false
   check_mode: false
 
-- name: Work out the kernel state
+- name: facts | Work out the kernel state
   ansible.builtin.set_fact:
     __lh_ap_kernel: >-
       {{ (__lh_ap_enabled_raw.content | default('') | b64decode | trim) == 'Y'
          and __lh_ap_securityfs.stat.exists }}
     __lh_ap_cmdline: "{{ __lh_ap_cmdline_raw.content | default('') | b64decode | trim | split(' ') }}"
 
-- name: Read the profile modes
+- name: facts | Read the profile modes
   ansible.builtin.include_tasks: profiles.yml

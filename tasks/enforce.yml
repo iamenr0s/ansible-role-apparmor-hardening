@@ -1,23 +1,23 @@
 ---
 # aa-enforce exits 0 even when it cannot find a profile, so never trust its return code: re-read the live
 # modes. Pass 1 uses the profile name; pass 2 falls back to the profile file for names that are not a path.
-- name: Re-read the live profile modes
+- name: enforce | Re-read the live profile modes
   ansible.builtin.include_tasks: profiles.yml
 
-- name: Remember which profiles were in complain mode
+- name: enforce | Remember which profiles were in complain mode
   ansible.builtin.set_fact:
     __lh_ap_complain_before: "{{ __lh_ap_complain }}"
 
-- name: Enforce by profile name
+- name: enforce | Enforce by profile name
   ansible.builtin.command: "aa-enforce {{ item | quote }}"
   loop: "{{ __lh_ap_complain }}"
   changed_when: false
   failed_when: false
 
-- name: Re-read the live profile modes (after the name pass)
+- name: enforce | Re-read the live profile modes (after the name pass)
   ansible.builtin.include_tasks: profiles.yml
 
-- name: Find the profile files of the ones still in complain mode
+- name: enforce | Find the profile files of the ones still in complain mode
   ansible.builtin.find:
     paths: /etc/apparmor.d
     file_type: file
@@ -26,22 +26,22 @@
   loop: "{{ __lh_ap_complain }}"
   register: __lh_ap_files
 
-- name: Enforce by profile file
+- name: enforce | Enforce by profile file
   ansible.builtin.command: "aa-enforce {{ item | quote }}"
   loop: "{{ __lh_ap_files.results | map(attribute='files') | flatten | map(attribute='path') | unique | list }}"
   changed_when: false
   failed_when: false
 
-- name: Re-read the live profile modes (after the file pass)
+- name: enforce | Re-read the live profile modes (after the file pass)
   ansible.builtin.include_tasks: profiles.yml
 
-- name: Remember what could not be enforced
+- name: enforce | Remember what could not be enforced
   ansible.builtin.set_fact:
     __lh_ap_failed: "{{ __lh_ap_complain }}"
 
 # The commands above never report a change (aa-enforce exits 0 whether or not it worked); a change is a
 # profile that left complain mode, so profiles that cannot be enforced do not make every run "changed".
-- name: Report how many profiles were enforced
+- name: enforce | Report how many profiles were enforced
   ansible.builtin.debug:
     msg: >-
       enforced {{ __lh_ap_complain_before | difference(__lh_ap_complain) | length }} profile(s);

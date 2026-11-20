@@ -1,12 +1,12 @@
 ---
 # Read-only. Sets __lh_ap_profiles (name -> mode) and __lh_ap_complain (parent profiles in complain mode,
 # not allowed). The only state enforce.yml needs to re-read after each aa-enforce pass.
-- name: Look for aa-status
+- name: profiles | Look for aa-status
   ansible.builtin.stat:
     path: /usr/sbin/aa-status
   register: __lh_ap_aa_status
 
-- name: Read the loaded profiles
+- name: profiles | Read the loaded profiles
   ansible.builtin.command: aa-status --json
   register: __lh_ap_status
   changed_when: false
@@ -15,13 +15,13 @@
   when: __lh_ap_aa_status.stat.exists
 
 # aa-status missing, failing or printing nothing means no profiles are loaded.
-- name: Map the loaded profiles to their modes
+- name: profiles | Map the loaded profiles to their modes
   ansible.builtin.set_fact:
     __lh_ap_profiles: >-
       {{ (__lh_ap_status.stdout | from_json).profiles
          if (__lh_ap_status.rc | default(1)) == 0 and (__lh_ap_status.stdout | default('') | length > 0) else {} }}
 
-- name: List the complain-mode parent profiles that are not allowed
+- name: profiles | List the complain-mode parent profiles that are not allowed
   ansible.builtin.set_fact:
     __lh_ap_complain: >-
       {{ __lh_ap_profiles | dict2items | selectattr('value', 'eq', 'complain') | map(attribute='key')
