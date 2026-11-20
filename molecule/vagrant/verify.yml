@@ -21,7 +21,7 @@
         __complain: "{{ __modes | dict2items | selectattr('value', 'eq', 'complain') | map(attribute='key') | list }}"
 
     - name: Query the service
-      ansible.builtin.systemd:
+      ansible.builtin.systemd_service:
         name: apparmor
       register: __u
 

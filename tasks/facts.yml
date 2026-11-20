@@ -39,7 +39,7 @@
   when: __lh_ap_aa_status.stat.exists
 
 - name: Query the apparmor service
-  ansible.builtin.systemd:
+  ansible.builtin.systemd_service:
     name: apparmor
   register: __lh_ap_unit
   failed_when: false

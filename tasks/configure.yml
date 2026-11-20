@@ -22,7 +22,7 @@
 
 # Starting needs the kernel interface (apparmor.service asserts on it); enabling does not.
 - name: Enable apparmor.service, and start it when the kernel interface is there
-  ansible.builtin.systemd:
+  ansible.builtin.systemd_service:
     name: apparmor
     enabled: true
     state: "{{ 'started' if __lh_ap_kernel else omit }}"
